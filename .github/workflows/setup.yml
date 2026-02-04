@@ -1,0 +1,45 @@
+name: 🛠️ Setup Bedrock Server
+
+on:
+  workflow_dispatch:
+    inputs:
+      bedrock_url:
+        description: "📥 Link tải Bedrock server (.zip)"
+        required: true
+        default: "https://minecraft.azureedge.net/bin-linux/bedrock-server-1.21.0.03.zip"
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt update && sudo apt install -y unzip curl
+
+      - name: Download Bedrock
+        run: |
+          mkdir -p server/bedrock
+          cd server/bedrock
+          echo "Downloading from ${{ inputs.bedrock_url }}"
+          curl -L -o bedrock.zip "${{ inputs.bedrock_url }}"
+          unzip bedrock.zip
+
+      - name: Download playit.gg
+        run: |
+          mkdir -p server/playit
+          curl -Lo server/playit/playit https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64
+          chmod +x server/playit/playit
+
+      - name: Login playit.gg
+        run: |
+          server/playit/playit
+
+      - name: Save to repo
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add .
+          git commit -m "Setup Bedrock server with custom link"
+          git push
