@@ -19,7 +19,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y curl wget unzip file
+          sudo apt install -y curl wget unzip file gnupg
 
       - name: Download Bedrock server
         run: |
@@ -35,7 +35,7 @@ jobs:
           if curl -L --fail -o bedrock.zip "$URL"; then
             echo "Downloaded with curl"
           elif curl -L -A "Mozilla/5.0" --fail -o bedrock.zip "$URL"; then
-            echo "Downloaded with curl + User-Agent"
+            echo "Downloaded with curl + UA"
           elif wget -O bedrock.zip "$URL"; then
             echo "Downloaded with wget"
           else
@@ -44,27 +44,36 @@ jobs:
           fi
 
           file bedrock.zip | grep -qi zip || {
-            echo "Downloaded file is not a zip archive"
+            echo "Not a zip file"
             exit 1
           }
 
           unzip -o bedrock.zip
           chmod +x bedrock_server || true
 
-      - name: Download playit.gg
+      - name: Install playit.gg (official)
         run: |
-          mkdir -p server/playit
-          curl -L -o server/playit/playit https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64
-          chmod +x server/playit/playit
+          curl -SsL https://playit-cloud.github.io/ppa/key.gpg \
+            | gpg --dearmor \
+            | sudo tee /etc/apt/trusted.gpg.d/playit.gpg >/dev/null
+
+          echo "deb [signed-by=/etc/apt/trusted.gpg.d/playit.gpg] https://playit-cloud.github.io/ppa/data ./" \
+            | sudo tee /etc/apt/sources.list.d/playit-cloud.list
+
+          sudo apt update
+          sudo apt install -y playit
 
       - name: Login playit.gg
         run: |
-          server/playit/playit
+          echo "====================================="
+          echo "MỞ LINK BÊN DƯỚI ĐỂ ĐĂNG NHẬP PLAYIT.GG"
+          echo "====================================="
+          playit
 
       - name: Save setup to repository
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add server
-          git commit -m "Setup Bedrock server" || true
+          git commit -m "Setup Bedrock server with playit.gg" || true
           git push
