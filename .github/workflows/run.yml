@@ -1,0 +1,54 @@
+name: 🚀 Run Bedrock Server
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: "⏱️ Thời gian treo"
+        default: "5h40m"
+      op_name:
+        description: "👑 Tên OP"
+        required: true
+      keep_inventory:
+        type: choice
+        options: ["true", "false"]
+      fire_spread:
+        type: choice
+        options: ["true", "false"]
+      tnt_explode:
+        type: choice
+        options: ["true", "false"]
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply config
+        run: |
+          mkdir -p server/config
+          cat > server/config/server.env <<EOF
+          OP=${{ inputs.op_name }}
+          KEEP_INVENTORY=${{ inputs.keep_inventory }}
+          FIRE_SPREAD=${{ inputs.fire_spread }}
+          TNT=${{ inputs.tnt_explode }}
+          EOF
+
+      - name: Commit config
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add server/config/server.env
+          git commit -m "Update server config" || true
+          git push
+
+      - name: Start server
+        run: |
+          chmod +x server/start.sh
+          server/start.sh
+
+      - name: Sleep
+        run: sleep 5h40m
