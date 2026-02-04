@@ -1,10 +1,10 @@
-name: 🛠️ Setup Bedrock Server
+name: Setup Bedrock Server
 
 on:
   workflow_dispatch:
     inputs:
       bedrock_url:
-        description: "📥 Link tải Bedrock server (.zip)"
+        description: "Link tải Bedrock server (.zip)"
         required: true
         default: "https://minecraft.azureedge.net/bin-linux/bedrock-server-1.21.0.03.zip"
 
@@ -13,33 +13,58 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: sudo apt update && sudo apt install -y unzip curl
-
-      - name: Download Bedrock
         run: |
+          sudo apt update
+          sudo apt install -y curl wget unzip file
+
+      - name: Download Bedrock server
+        run: |
+          set -e
           mkdir -p server/bedrock
           cd server/bedrock
-          echo "Downloading from ${{ inputs.bedrock_url }}"
-          curl -L -o bedrock.zip "${{ inputs.bedrock_url }}"
-          unzip bedrock.zip
+
+          URL="${{ inputs.bedrock_url }}"
+          echo "Downloading: $URL"
+
+          rm -f bedrock.zip
+
+          if curl -L --fail -o bedrock.zip "$URL"; then
+            echo "Downloaded with curl"
+          elif curl -L -A "Mozilla/5.0" --fail -o bedrock.zip "$URL"; then
+            echo "Downloaded with curl + User-Agent"
+          elif wget -O bedrock.zip "$URL"; then
+            echo "Downloaded with wget"
+          else
+            echo "Download failed"
+            exit 1
+          fi
+
+          file bedrock.zip | grep -qi zip || {
+            echo "Downloaded file is not a zip archive"
+            exit 1
+          }
+
+          unzip -o bedrock.zip
+          chmod +x bedrock_server || true
 
       - name: Download playit.gg
         run: |
           mkdir -p server/playit
-          curl -Lo server/playit/playit https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64
+          curl -L -o server/playit/playit https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64
           chmod +x server/playit/playit
 
       - name: Login playit.gg
         run: |
           server/playit/playit
 
-      - name: Save to repo
+      - name: Save setup to repository
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git add .
-          git commit -m "Setup Bedrock server with custom link"
+          git add server
+          git commit -m "Setup Bedrock server" || true
           git push
